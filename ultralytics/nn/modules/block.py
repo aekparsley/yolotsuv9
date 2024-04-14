@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from skimage.filters import threshold_otsu
 from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, autopad
 from .transformer import TransformerBlock
 
@@ -32,12 +32,13 @@ __all__ = (
     "RepC3",
     "ResNetLayer",
     "RepNCSPELAN4",
+    "Gelotsu",
     "ADown",
     "SPPELAN",
     "CBFuse",
     "CBLinear",
     "Silence",
-    "Gelotsu",
+    
 )
 
 
@@ -604,23 +605,44 @@ class RepNCSPELAN4(nn.Module):
         return self.cv4(torch.cat(y, 1))
 
 class Gelotsu(nn.Module):
-    """CSP-ELAN."""
-
     def __init__(self, c1, c2, c3, c4, n=1):
-        """Initializes CSP-ELAN layer with specified channel sizes, repetitions, and convolutions."""
+        """Initializes Gelotsu layer with specified channel sizes, repetitions, and convolutions."""
         super().__init__()
         self.c = c3 // 2
         self.cv1 = Conv(c1, c3, 1, 1)
         self.cv2 = nn.Sequential(RepCSP(c3 // 2, c4, n), Conv(c4, c4, 3, 1))
         self.cv3 = nn.Sequential(RepCSP(c4, c4, n), Conv(c4, c4, 3, 1))
         self.cv4 = Conv(c3 + (2 * c4), c2, 1, 1)
+        # Add convolutions for mean and variance estimation
+        self.mean_conv = Conv(c2, 1, 1, 1)
+        self.var_conv = Conv(c2, 1, 1, 1)
+        # Add a convolution for segmentation prediction (inspired by Otsu's method)
+        self.seg_conv = Conv(c2, 1, 1, 1)
 
     def forward(self, x):
-        """Forward pass through RepNCSPELAN4 layer."""
+        """Forward pass through Gelotsu layer with combined output tensor."""
         y = list(self.cv1(x).chunk(2, 1))
         y.extend((m(y[-1])) for m in [self.cv2, self.cv3])
-        return self.cv4(torch.cat(y, 1))
+        # Combine features
+        combined = self.cv4(torch.cat(y, 1))
 
+        # Estimate mean and variance of features (inspired by Otsu's method)
+        mean = self.mean_conv(combined)
+        var = F.relu(self.var_conv(combined)) + 1e-5  # Avoid division by zero
+
+        # Simple segmentation prediction inspired by Otsu's thresholding
+        threshold = (mean + var) / 2  # This is a basic approximation
+        segmentation = torch.sigmoid(self.seg_conv(combined) - threshold)  # Soft thresholding
+
+        # Resize segmentation mask to match the spatial dimensions of combined tensor
+        segmentation = F.interpolate(segmentation, size=combined.shape[2:], mode='nearest')
+
+        # Concatenate features and segmentation mask into a single tensor
+        output = torch.cat((combined, segmentation), dim=1)
+        output_tensor = output[:, :256, :, :]
+
+        return output_tensor
+    
     def forward_split(self, x):
         """Forward pass using split() instead of chunk()."""
         y = list(self.cv1(x).split((self.c, self.c), 1))
@@ -629,7 +651,7 @@ class Gelotsu(nn.Module):
 
 
 
-
+    
 class ADown(nn.Module):
     """ADown."""
 
@@ -711,3 +733,6 @@ class CBFuse(nn.Module):
         res = [F.interpolate(x[self.idx[i]], size=target_size, mode="nearest") for i, x in enumerate(xs[:-1])]
         out = torch.sum(torch.stack(res + xs[-1:]), dim=0)
         return out
+
+
+
