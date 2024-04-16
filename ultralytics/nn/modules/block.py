@@ -615,10 +615,10 @@ class Gelotsu(nn.Module):
         self.cv3 = nn.Sequential(RepCSP(c4, c4, n), Conv(c4, c4, 3, 1))
         self.cv4 = Conv(c3 + (2 * c4), c2, 1, 1)
         # Add convolutions for mean and variance estimation
-        self.mean_conv = Conv(c2, 1, 1, 1)
-        self.var_conv = Conv(c2, 1, 1, 1)
+        self.mean_conv = Conv(c2, c2//2, 3, 1)
+        self.var_conv = Conv(c2, c2//2, 3, 1)
         # Add a convolution for segmentation prediction (inspired by Otsu's method)
-        self.seg_conv = Conv(c2, 1, 1, 1)
+        self.seg_conv = Conv(c2, c2//2, 3, 1)
 
     def forward(self, x):
         """Forward pass through Gelotsu layer with combined output tensor."""
