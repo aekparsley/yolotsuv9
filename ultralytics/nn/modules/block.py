@@ -687,6 +687,16 @@ class Gelotsu(nn.Module):
 
         # # Resize segmentation mask to match the spatial dimensions of combined tensor
         # segmentation = F.interpolate(segmentation, size=combined.shape[2:], mode='nearest')
+<<<<<<< HEAD
+=======
+
+        # # Concatenate features and segmentation mask into a single tensor
+        # output = torch.cat((combined, segmentation), dim=1)
+        # output_tensor = output[:, :256, :, :]
+
+        # return output_tensor
+        
+>>>>>>> 8c8d6927dc2037b3f4c9beb4f9e273fec3ea3bd7
 
         # # Concatenate features and segmentation mask into a single tensor
         # output = torch.cat((combined, segmentation), dim=1)
