@@ -25,8 +25,13 @@ head:
 
   - [-1, 1, nn.Upsample, [None, 2, 'nearest']]
   - [[-1, 4], 1, Concat, [1]]  # cat backbone P3
+<<<<<<< HEAD
+  - [-1, 1, RepNCSPELAN4, [256, 256, 128, 1]]  # 15 (P3/8-small) # we will start by modifying here change it to gelotsu
+  - [-1, 1, Gelotsu, [256, 256, 128, 1]] #output 256
+=======
   - [-1, 1, Gelotsu, [256, 256, 128, 1]]  # 15 (P3/8-small) # we will start by modifying here change it to gelotsu
   - [-1, 1, Gelotsu, [256, 256, 128, 1]]
+>>>>>>> parent of f34bc131 (fix gelotsu duplicate)
 
   - [-1, 1, ADown, [256]]
   - [[-1, 12], 1, Concat, [1]]  # cat head P4
@@ -37,4 +42,4 @@ head:
   - [-1, 1, RepNCSPELAN4, [512, 512, 256, 1]]  # 21 (P5/32-large)
 
   #- [[15, 18, 21], 1, Detect, [nc]]  # Detect(P3, P4, P5)
-  - [[15, 16, 19, 22], 1, Detect, [nc]]  # Detect(P3, P4, P5)
+  - [[16, 15, 19, 22], 1, Detect, [nc]]  # Detect(P3, P4, P5)
