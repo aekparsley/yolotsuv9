@@ -607,53 +607,42 @@ class RepNCSPELAN4(nn.Module):
 ############################################################################################################################################################################
 class Gelotsu(nn.Module):
     def __init__(self, c1, c2, c3, c4, n=1):
-        """Initializes CSP-ELAN layer with specified channel sizes, repetitions, and convolutions."""
+        """Initializes Gelotsu layer with specified channel sizes, repetitions, and convolutions."""
         super().__init__()
         self.c = c3 // 2
-        self.cv1 = Conv(1, c3, 1, 1)  # Fix the number of input channels here
+        self.cv1 = Conv(c1, c3, 1, 1)
         self.cv2 = nn.Sequential(RepCSP(c3 // 2, c4, n), Conv(c4, c4, 3, 1))
         self.cv3 = nn.Sequential(RepCSP(c4, c4, n), Conv(c4, c4, 3, 1))
         self.cv4 = Conv(c3 + (2 * c4), c2, 1, 1)
+        # Add convolutions for mean and variance estimation
+        self.mean_conv = Conv(c2, 1, 1, 1)
+        self.var_conv = Conv(c2, 1, 1, 1)
+        # Add a convolution for segmentation prediction (inspired by Otsu's method)
+        self.seg_conv = Conv(c2, 1, 1, 1)
 
     def forward(self, x):
-        """Forward pass through Gelotsu layer."""
-        # Convert RGB images to grayscale
-        grayscale_images = torch.mean(x, dim=1, keepdim=True)
-        # Convert grayscale images to numpy arrays
-        grayscale_np = grayscale_images.detach().cpu().numpy()
-        # Convert to appropriate type (CV_8UC1)
-        grayscale_uint8 = (grayscale_np * 255).astype(np.uint8)
-        # Apply Otsu's thresholding to segment images into binary masks
-        binary_masks = np.zeros_like(grayscale_uint8, dtype=np.uint8)
-        for i, img in enumerate(grayscale_uint8):
-            _, thresholded = cv2.threshold(img[0], 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            binary_masks[i] = thresholded
-        # Convert binary masks to PyTorch tensor
-        binary_masks_tensor = torch.tensor(binary_masks, dtype=torch.float32, device=x.device)
-        # Pass binary masks through the network
-        y = list(self.cv1(binary_masks_tensor).chunk(2, 1))
+        """Forward pass through Gelotsu layer with combined output tensor."""
+        y = list(self.cv1(x).chunk(2, 1))
         y.extend((m(y[-1])) for m in [self.cv2, self.cv3])
-        return self.cv4(torch.cat(y, 1))
+        # Combine features
+        combined = self.cv4(torch.cat(y, 1))
 
-    def forward_split(self, x):
-        """Forward pass using split() instead of chunk()."""
-        # Convert RGB images to grayscale
-        grayscale_images = torch.mean(x, dim=1, keepdim=True)
-        # Convert grayscale images to numpy arrays
-        grayscale_np = grayscale_images.detach().cpu().numpy()
-        # Convert to appropriate type (CV_8UC1)
-        grayscale_uint8 = (grayscale_np * 255).astype(np.uint8)
-        # Apply Otsu's thresholding to segment images into binary masks
-        binary_masks = np.zeros_like(grayscale_uint8, dtype=np.uint8)
-        for i, img in enumerate(grayscale_uint8):
-            _, thresholded = cv2.threshold(img[0], 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            binary_masks[i] = thresholded
-        # Convert binary masks to PyTorch tensor
-        binary_masks_tensor = torch.tensor(binary_masks, dtype=torch.float32, device=x.device)
-        # Pass binary masks through the network
-        y = list(self.cv1(binary_masks_tensor).split((self.c, self.c), 1))
-        y.extend(m(y[-1]) for m in [self.cv2, self.cv3])
-        return self.cv4(torch.cat(y, 1))
+        # Estimate mean and variance of features (inspired by Otsu's method)
+        mean = self.mean_conv(combined)
+        var = F.relu(self.var_conv(combined)) + 1e-5  # Avoid division by zero
+
+        # Simple segmentation prediction inspired by Otsu's thresholding
+        threshold = (mean + var) / 2  # This is a basic approximation
+        segmentation = torch.sigmoid(self.seg_conv(combined) - threshold)  # Soft thresholding
+
+        # Resize segmentation mask to match the spatial dimensions of combined tensor
+        segmentation = F.interpolate(segmentation, size=combined.shape[2:], mode='nearest')
+
+        # Concatenate features and segmentation mask into a single tensor
+        output = torch.cat((combined, segmentation), dim=1)
+        output_tensor = output[:, :256, :, :]
+
+        return output_tensor
 
     #def __init__(self, c1, c2, c3, c4, n=1):
     
@@ -687,8 +676,6 @@ class Gelotsu(nn.Module):
 
         # # Resize segmentation mask to match the spatial dimensions of combined tensor
         # segmentation = F.interpolate(segmentation, size=combined.shape[2:], mode='nearest')
-<<<<<<< HEAD
-=======
 
         # # Concatenate features and segmentation mask into a single tensor
         # output = torch.cat((combined, segmentation), dim=1)
@@ -696,7 +683,6 @@ class Gelotsu(nn.Module):
 
         # return output_tensor
         
->>>>>>> 8c8d6927dc2037b3f4c9beb4f9e273fec3ea3bd7
 
         # # Concatenate features and segmentation mask into a single tensor
         # output = torch.cat((combined, segmentation), dim=1)
