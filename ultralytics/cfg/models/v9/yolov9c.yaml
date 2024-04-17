@@ -29,7 +29,7 @@ head:
   - [-1, 1, RepNCSPELAN4, [256, 256, 128, 1]]  # 15 (P3/8-small) # we will start by modifying here change it to gelotsu
   - [3, 1, Gelotsu, [256, 128, 128, 1]] 
 
-  - [-1, 1, ADown, [256]]
+  - [15, 1, ADown, [256]]
   - [[-1, 12], 1, Concat, [1]]  # cat head P4
   - [-1, 1, RepNCSPELAN4, [512, 512, 256, 1]]  # 18 (P4/16-medium) 
 
