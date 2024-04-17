@@ -614,35 +614,32 @@ class Gelotsu(nn.Module):
         self.cv2 = nn.Sequential(RepCSP(c3 // 2, c4, n), Conv(c4, c4, 3, 1))
         self.cv3 = nn.Sequential(RepCSP(c4, c4, n), Conv(c4, c4, 3, 1))
         self.cv4 = Conv(c3 + (2 * c4), c2, 1, 1)
-        # Add convolutions for mean and variance estimation
-        self.mean_conv = Conv(c2, c2//2, 3, 1)
-        self.var_conv = Conv(c2, c2//2, 3, 1)
-        # Add a convolution for segmentation prediction (inspired by Otsu's method)
-        self.seg_conv = Conv(c2, c2//2, 3, 1)
+        # Add convolutions for mean and var 
+        self.mean_conv = Conv(c2, c2, 3, 1)
+        self.var_conv  = Conv(c2, c2, 3, 1)
+        self.seg_conv  = Conv(c2, c2, 3, 1)
 
     def forward(self, x):
         """Forward pass through Gelotsu layer with combined output tensor."""
-        y = list(self.cv1(x).chunk(2, 1))
+        y = list(self.cv1(x).chunk(2, 1))  # chunk here no split 
         y.extend((m(y[-1])) for m in [self.cv2, self.cv3])
         # Combine features
         combined = self.cv4(torch.cat(y, 1))
 
-        # Estimate mean and variance of features (inspired by Otsu's method)
+        # mean and variance of features 
         mean = self.mean_conv(combined)
-        var = F.relu(self.var_conv(combined)) + 1e-5  # Avoid division by zero
+        var = F.silu(self.var_conv(combined)) + 1e-5  # avoid 0 division
 
-        # Simple segmentation prediction inspired by Otsu's thresholding
-        threshold = (mean + var) / 2  # This is a basic approximation
-        segmentation = torch.sigmoid(self.seg_conv(combined) - threshold)  # Soft thresholding
+        threshold = (mean + var) / 3  # This is a basic approximation; /3 to minimize impact ?
+        segmentation = torch.sigmoid(self.seg_conv(combined) - threshold) # thresholding
 
-        # Resize segmentation mask to match the spatial dimensions of combined tensor
-        segmentation = F.interpolate(segmentation, size=combined.shape[2:], mode='nearest')
+        # Resize for dim matching
+        segmentation = F.interpolate(segmentation, size=combined.shape[2:], mode='bilinear')
 
-        # Concatenate features and segmentation mask into a single tensor
+        # Concat features and segmentation mask 
         output = torch.cat((combined, segmentation), dim=1)
         output_tensor = output[:, :256, :, :]
-
-        return output_tensor
+        return output_tensor    
 
     #def __init__(self, c1, c2, c3, c4, n=1):
     
