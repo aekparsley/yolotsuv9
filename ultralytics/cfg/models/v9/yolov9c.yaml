@@ -16,29 +16,25 @@ backbone:
   - [-1, 1, RepNCSPELAN4, [512, 512, 256, 1]]  # 6
   - [-1, 1, ADown, [512]]  # 7-P5/32
   - [-1, 1, RepNCSPELAN4, [512, 512, 256, 1]]  # 8
-  - [-1, 1, SPPELAN, [512, 256]]  # 9 
+  - [-1, 1, SPPELAN, [512, 256]]  # 9
 
 head:
   - [-1, 1, nn.Upsample, [None, 2, 'nearest']]
   - [[-1, 6], 1, Concat, [1]]  # cat backbone P4
-  - [-1, 1, RepNCSPELAN4, [512, 512, 256, 1]]  # 12
+  - [-1, 1, Gelotsu, [256, 128, 64, 1]]  # 12  
+  - [11, 1, RepNCSPELAN4, [512, 512, 256, 1]]  # 12
 
   - [-1, 1, nn.Upsample, [None, 2, 'nearest']]
   - [[-1, 4], 1, Concat, [1]]  # cat backbone P3
+  - [-1, 1, RepNCSPELAN4, [256, 256, 128, 1]]  # 15 (P3/8-small)
 
-  - [-1, 1, RepNCSPELAN4, [256, 256, 128, 1]]  # 15 (P3/8-small) # we will start by modifying here change it to gelotsu
-####
-  - [4, 1, ADown, [128]]
-  - [-1, 1, Gelotsu, [256, 64, 64, 1]] 
-####
-  - [15, 1, ADown, [256]]
+  - [-1, 1, ADown, [256]]
   - [[-1, 12], 1, Concat, [1]]  # cat head P4
-  - [-1, 1, RepNCSPELAN4, [512, 512, 256, 1]]  # 18 (P4/16-medium) 
+  - [-1, 1, RepNCSPELAN4, [512, 512, 256, 1]]  # 18 (P4/16-medium)
 
   - [-1, 1, ADown, [512]]
   - [[-1, 9], 1, Concat, [1]]  # cat head P5
   - [-1, 1, RepNCSPELAN4, [512, 512, 256, 1]]  # 21 (P5/32-large)
 
   #- [[15, 18, 21], 1, Detect, [nc]]  # Detect(P3, P4, P5)
- # - [[16, 15, 19, 22], 1, Detect, [nc]]  # Detect(P3, P4, P5)
-  - [[15, 17, 20, 23], 1, Detect, [nc]]  # Detect(P3, P4, P5)
+  - [[16, 19, 22], 1, Detect, [nc]]  # Detect(P3, P4, P5)

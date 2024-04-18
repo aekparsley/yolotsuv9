@@ -639,7 +639,7 @@ class Gelotsu(nn.Module):
         # Concat features and segmentation mask 
         output = torch.cat((combined, segmentation), dim=1)
         output_tensor = output[:, :256, :, :]
-        return output_tensor    
+        return output_tensor   
 
     #def __init__(self, c1, c2, c3, c4, n=1):
     
