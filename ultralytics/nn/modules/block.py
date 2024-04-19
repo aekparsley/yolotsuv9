@@ -615,9 +615,9 @@ class Gelotsu(nn.Module):
         self.cv3 = nn.Sequential(RepCSP(c4, c4, n), Conv(c4, c4, 3, 1))
         self.cv4 = Conv(c3 + (2 * c4), c2, 1, 1)
         # Add convolutions for mean and var 
-        self.mean_conv = Conv(c2, c2, 3, 1)
-        self.var_conv  = Conv(c2, c2, 3, 1)
-        self.seg_conv  = Conv(c2, c2, 3, 1)
+        self.mean_conv = Conv(c2, c2, 1, 1)
+        self.var_conv  = Conv(c2, c2, 1, 1)
+        self.seg_conv  = Conv(c2, c2, 1, 1)
 
     def forward(self, x):
         """Forward pass through Gelotsu layer with combined output tensor."""
@@ -630,8 +630,8 @@ class Gelotsu(nn.Module):
         mean = self.mean_conv(combined)
         var = F.silu(self.var_conv(combined)) + 1e-5  # avoid 0 division
 
-        threshold = (mean + var) / 3  # This is a basic approximation; /3 to minimize impact ?
-        segmentation = torch.relu(self.seg_conv(combined) - threshold) # thresholding
+        threshold = (mean + var) / 4  # This is a basic approximation; /3 to minimize impact ?
+        segmentation = F.silu(self.seg_conv(combined) - threshold) # thresholding
 
         # Resize for dim matching
         segmentation = F.interpolate(segmentation, size=combined.shape[2:], mode='bilinear')
