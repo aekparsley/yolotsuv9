@@ -631,7 +631,7 @@ class Gelotsu(nn.Module):
         var = F.silu(self.var_conv(combined)) + 1e-5  # avoid 0 division
 
         threshold = (mean + var) / 3  # This is a basic approximation; /3 to minimize impact ?
-        segmentation = torch.sigmoid(self.seg_conv(combined) - threshold) # thresholding
+        segmentation = torch.relu(self.seg_conv(combined) - threshold) # thresholding
 
         # Resize for dim matching
         segmentation = F.interpolate(segmentation, size=combined.shape[2:], mode='bilinear')
